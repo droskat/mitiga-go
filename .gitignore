@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.db
+*.db-shm
+*.db-wal
+*.exe
+mitiga-server
+backend/config.go
+.env
+.DS_Store
