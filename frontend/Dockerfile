@@ -12,6 +12,7 @@ RUN npm run build
 FROM nginx:alpine
 
 ENV BACKEND_PORT=8091
+ENV BACKEND_HOST=mitiga-backend
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
