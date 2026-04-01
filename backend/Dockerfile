@@ -21,6 +21,6 @@ RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=builder /mitiga-server /mitiga-server
 
-EXPOSE 8080
+EXPOSE 8091
 
 ENTRYPOINT ["/mitiga-server"]

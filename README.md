@@ -61,7 +61,7 @@ go mod tidy
 go run ./cmd/
 ```
 
-The API server starts on `http://localhost:8080`.
+The API server starts on `http://localhost:8091`.
 
 ### 2. Frontend
 
@@ -97,6 +97,8 @@ The `.env` file should contain:
 | `DB_HOST` | Yes | MySQL host (e.g. your RDS endpoint) |
 | `DB_PORT` | No | MySQL port (default: `3306`) |
 | `DB_NAME` | No | Database name (default: `Test`) |
+| `BACKEND_PORT` | No | Backend server port (default: `8091`) |
+| `FRONTEND_PORT` | No | Frontend port on host (default: `80`) |
 | `ENCRYPTION_KEY` | No | AES-256 key, exactly 32 bytes (has a built-in default) |
 | `JWT_SECRET` | No | JWT signing secret (has a built-in default) |
 | `CORS_ORIGINS` | No | Extra allowed origins, comma-separated |
@@ -108,7 +110,7 @@ docker compose up -d --build
 ```
 
 This builds both containers:
-- **backend** — Go binary in a minimal Alpine image, exposed on port `8080`
+- **backend** — Go binary in a minimal Alpine image, exposed on port `8091`
 - **frontend** — Vite production build served by nginx on port `80`, with `/api` reverse-proxied to the backend
 
 ### 3. Access the app
@@ -186,7 +188,9 @@ docker compose down
 | `ENCRYPTION_KEY` | built-in 32-byte key | AES-256 encryption key (must be exactly 32 bytes) |
 | `JWT_SECRET` | built-in secret | JWT signing secret |
 | `CORS_ORIGINS` | *(empty)* | Additional allowed origins (comma-separated) |
-| `PORT` | `8080` | Backend server port |
+| `PORT` | `8091` | Backend server port (inside container) |
+| `BACKEND_PORT` | `8091` | Backend port on host (docker-compose) |
+| `FRONTEND_PORT` | `80` | Frontend port on host (docker-compose) |
 
 ## Project Structure
 

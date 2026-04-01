@@ -93,7 +93,7 @@ func main() {
 		}
 	}
 
-	port := envOrDefault("PORT", "8080")
+	port := envOrDefault("PORT", "8091")
 	log.Printf("Server starting on :%s", port)
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
