@@ -5,15 +5,8 @@ services:
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8091}:8091"
+    env_file: .env
     environment:
-      - DB_USER=${DB_USER}
-      - DB_PASS=${DB_PASS}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_NAME=${DB_NAME:-Test}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGINS=${CORS_ORIGINS}
       - PORT=8091
       - GIN_MODE=release
     networks:
@@ -30,9 +23,6 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-80}:80"
-    environment:
-      - BACKEND_PORT=${BACKEND_PORT:-8091}
-      - BACKEND_HOST=mitiga-backend
     depends_on:
       - backend
     networks:
