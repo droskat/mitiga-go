@@ -3,14 +3,11 @@ services:
     build: ./backend
     container_name: mitiga-backend
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-8091}:8091"
+    network_mode: host
     env_file: .env
     environment:
       - PORT=8091
       - GIN_MODE=release
-    networks:
-      - mitiga
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8091/api/tags", "||", "true"]
       interval: 30s
@@ -23,11 +20,7 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-80}:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - backend
-    networks:
-      - mitiga
-
-networks:
-  mitiga:
-    driver: bridge
