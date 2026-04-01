@@ -30,6 +30,7 @@ func main() {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=UTC",
 		dbUser, dbPass, dbHost, dbPort, dbName,
 	)
+	log.Printf("DSN debug: user=[%s] pass=[%s] host=[%s] port=[%s] db=[%s]", dbUser, dbPass, dbHost, dbPort, dbName)
 
 	db, err := database.New(dsn)
 	if err != nil {
