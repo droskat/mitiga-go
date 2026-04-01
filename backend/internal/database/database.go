@@ -89,6 +89,14 @@ func (db *DB) migrate() error {
 			FOREIGN KEY (gossip_id) REFERENCES gossips(id) ON DELETE CASCADE,
 			FOREIGN KEY (user_id) REFERENCES mitigausers(id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS dislikes (
+			id BIGINT AUTO_INCREMENT PRIMARY KEY,
+			gossip_id BIGINT NOT NULL,
+			user_id BIGINT NOT NULL,
+			UNIQUE KEY uq_dislike_gossip_user (gossip_id, user_id),
+			FOREIGN KEY (gossip_id) REFERENCES gossips(id) ON DELETE CASCADE,
+			FOREIGN KEY (user_id) REFERENCES mitigausers(id)
+		)`,
 	}
 	for _, stmt := range statements {
 		if _, err := db.conn.Exec(stmt); err != nil {
@@ -371,12 +379,14 @@ func (db *DB) GetGossips(currentUserID int64, tagFilter string) ([]models.Gossip
 	query := `
 		SELECT g.id, g.author_id, u.username, g.title, g.content, g.created_at,
 			(SELECT COUNT(*) FROM likes WHERE gossip_id = g.id) as like_count,
+			(SELECT COUNT(*) FROM dislikes WHERE gossip_id = g.id) as dislike_count,
 			(SELECT COUNT(*) FROM comments WHERE gossip_id = g.id) as comment_count,
-			(SELECT COUNT(*) FROM likes WHERE gossip_id = g.id AND user_id = ?) as liked_by_me
+			(SELECT COUNT(*) FROM likes WHERE gossip_id = g.id AND user_id = ?) as liked_by_me,
+			(SELECT COUNT(*) FROM dislikes WHERE gossip_id = g.id AND user_id = ?) as disliked_by_me
 		FROM gossips g
 		JOIN mitigausers u ON g.author_id = u.id
 	`
-	args := []interface{}{currentUserID}
+	args := []interface{}{currentUserID, currentUserID}
 
 	if tagFilter != "" {
 		query += `
@@ -398,15 +408,16 @@ func (db *DB) GetGossips(currentUserID int64, tagFilter string) ([]models.Gossip
 	for rows.Next() {
 		var g models.Gossip
 		var encTitle, encContent string
-		var likedByMe int
+		var likedByMe, dislikedByMe int
 		if err := rows.Scan(&g.ID, &g.AuthorID, &g.AuthorName, &encTitle, &encContent,
-			&g.CreatedAt, &g.LikeCount, &g.CommentCount, &likedByMe); err != nil {
+			&g.CreatedAt, &g.LikeCount, &g.DislikeCount, &g.CommentCount, &likedByMe, &dislikedByMe); err != nil {
 			return nil, err
 		}
 		g.Title, _ = crypto.Decrypt(encTitle)
 		g.Content, _ = crypto.Decrypt(encContent)
 		g.LikedByMe = likedByMe > 0
-		g.Score = g.LikeCount*3 + g.CommentCount*2
+		g.DislikedByMe = dislikedByMe > 0
+		g.Score = g.LikeCount*3 + g.CommentCount*2 - g.DislikeCount*2
 
 		tags, err := db.GetGossipTags(g.ID)
 		if err != nil {
@@ -421,18 +432,20 @@ func (db *DB) GetGossips(currentUserID int64, tagFilter string) ([]models.Gossip
 func (db *DB) GetGossipByID(gossipID, currentUserID int64) (*models.Gossip, error) {
 	var g models.Gossip
 	var encTitle, encContent string
-	var likedByMe int
+	var likedByMe, dislikedByMe int
 	err := db.conn.QueryRow(`
 		SELECT g.id, g.author_id, u.username, g.title, g.content, g.created_at,
 			(SELECT COUNT(*) FROM likes WHERE gossip_id = g.id) as like_count,
+			(SELECT COUNT(*) FROM dislikes WHERE gossip_id = g.id) as dislike_count,
 			(SELECT COUNT(*) FROM comments WHERE gossip_id = g.id) as comment_count,
-			(SELECT COUNT(*) FROM likes WHERE gossip_id = g.id AND user_id = ?) as liked_by_me
+			(SELECT COUNT(*) FROM likes WHERE gossip_id = g.id AND user_id = ?) as liked_by_me,
+			(SELECT COUNT(*) FROM dislikes WHERE gossip_id = g.id AND user_id = ?) as disliked_by_me
 		FROM gossips g
 		JOIN mitigausers u ON g.author_id = u.id
 		WHERE g.id = ?
-	`, currentUserID, gossipID).Scan(
+	`, currentUserID, currentUserID, gossipID).Scan(
 		&g.ID, &g.AuthorID, &g.AuthorName, &encTitle, &encContent,
-		&g.CreatedAt, &g.LikeCount, &g.CommentCount, &likedByMe,
+		&g.CreatedAt, &g.LikeCount, &g.DislikeCount, &g.CommentCount, &likedByMe, &dislikedByMe,
 	)
 	if err != nil {
 		return nil, err
@@ -440,7 +453,8 @@ func (db *DB) GetGossipByID(gossipID, currentUserID int64) (*models.Gossip, erro
 	g.Title, _ = crypto.Decrypt(encTitle)
 	g.Content, _ = crypto.Decrypt(encContent)
 	g.LikedByMe = likedByMe > 0
-	g.Score = g.LikeCount*3 + g.CommentCount*2
+	g.DislikedByMe = dislikedByMe > 0
+	g.Score = g.LikeCount*3 + g.CommentCount*2 - g.DislikeCount*2
 
 	tags, err := db.GetGossipTags(g.ID)
 	if err != nil {
@@ -474,6 +488,9 @@ func (db *DB) GetGossipTags(gossipID int64) ([]models.Tag, error) {
 // --- Like operations ---
 
 func (db *DB) ToggleLike(gossipID, userID int64) (bool, error) {
+	// Remove any existing dislike first (mutual exclusion)
+	db.conn.Exec("DELETE FROM dislikes WHERE gossip_id = ? AND user_id = ?", gossipID, userID)
+
 	var id int64
 	err := db.conn.QueryRow(
 		"SELECT id FROM likes WHERE gossip_id = ? AND user_id = ?", gossipID, userID,
@@ -489,6 +506,64 @@ func (db *DB) ToggleLike(gossipID, userID int64) (bool, error) {
 	}
 	_, err = db.conn.Exec("DELETE FROM likes WHERE id = ?", id)
 	return false, err
+}
+
+func (db *DB) ToggleDislike(gossipID, userID int64) (bool, error) {
+	// Remove any existing like first (mutual exclusion)
+	db.conn.Exec("DELETE FROM likes WHERE gossip_id = ? AND user_id = ?", gossipID, userID)
+
+	var id int64
+	err := db.conn.QueryRow(
+		"SELECT id FROM dislikes WHERE gossip_id = ? AND user_id = ?", gossipID, userID,
+	).Scan(&id)
+	if err == sql.ErrNoRows {
+		_, err = db.conn.Exec(
+			"INSERT INTO dislikes (gossip_id, user_id) VALUES (?, ?)", gossipID, userID,
+		)
+		return true, err
+	}
+	if err != nil {
+		return false, err
+	}
+	_, err = db.conn.Exec("DELETE FROM dislikes WHERE id = ?", id)
+	return false, err
+}
+
+func (db *DB) GetReactionUsers(gossipID int64) (*models.ReactionUsers, error) {
+	result := &models.ReactionUsers{
+		LikedBy:    []string{},
+		DislikedBy: []string{},
+	}
+
+	likeRows, err := db.conn.Query(
+		"SELECT u.username FROM likes l JOIN mitigausers u ON l.user_id = u.id WHERE l.gossip_id = ?", gossipID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer likeRows.Close()
+	for likeRows.Next() {
+		var name string
+		if err := likeRows.Scan(&name); err == nil {
+			result.LikedBy = append(result.LikedBy, name)
+		}
+	}
+
+	dislikeRows, err := db.conn.Query(
+		"SELECT u.username FROM dislikes d JOIN mitigausers u ON d.user_id = u.id WHERE d.gossip_id = ?", gossipID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer dislikeRows.Close()
+	for dislikeRows.Next() {
+		var name string
+		if err := dislikeRows.Scan(&name); err == nil {
+			result.DislikedBy = append(result.DislikedBy, name)
+		}
+	}
+
+	return result, nil
 }
 
 // --- Comment operations ---
@@ -540,13 +615,15 @@ func (db *DB) GetScoreboard() ([]models.ScoreEntry, error) {
 		SELECT u.id, u.username,
 			(SELECT COUNT(*) FROM gossips WHERE author_id = u.id) as posts,
 			(SELECT COUNT(*) FROM likes l JOIN gossips g ON l.gossip_id = g.id WHERE g.author_id = u.id) as likes_received,
+			(SELECT COUNT(*) FROM dislikes d JOIN gossips g ON d.gossip_id = g.id WHERE g.author_id = u.id) as dislikes_received,
 			(SELECT COUNT(*) FROM comments WHERE author_id = u.id) as comments_made
 		FROM mitigausers u
 		WHERE u.approved = 1
 		ORDER BY (
 			(SELECT COUNT(*) FROM gossips WHERE author_id = u.id) * 5 +
 			(SELECT COUNT(*) FROM likes l JOIN gossips g ON l.gossip_id = g.id WHERE g.author_id = u.id) * 3 +
-			(SELECT COUNT(*) FROM comments WHERE author_id = u.id) * 2
+			(SELECT COUNT(*) FROM comments WHERE author_id = u.id) * 2 -
+			(SELECT COUNT(*) FROM dislikes d JOIN gossips g ON d.gossip_id = g.id WHERE g.author_id = u.id) * 2
 		) DESC
 	`)
 	if err != nil {
@@ -556,10 +633,10 @@ func (db *DB) GetScoreboard() ([]models.ScoreEntry, error) {
 	var entries []models.ScoreEntry
 	for rows.Next() {
 		var e models.ScoreEntry
-		if err := rows.Scan(&e.UserID, &e.Username, &e.Posts, &e.Likes, &e.Comments); err != nil {
+		if err := rows.Scan(&e.UserID, &e.Username, &e.Posts, &e.Likes, &e.Dislikes, &e.Comments); err != nil {
 			return nil, err
 		}
-		e.Score = e.Posts*5 + e.Likes*3 + e.Comments*2
+		e.Score = e.Posts*5 + e.Likes*3 + e.Comments*2 - e.Dislikes*2
 		entries = append(entries, e)
 	}
 	return entries, nil

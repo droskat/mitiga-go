@@ -134,7 +134,7 @@ input, textarea, select {
 .scoreboard-header,
 .scoreboard-row {
   display: grid;
-  grid-template-columns: 50px 1fr 80px 80px 80px 90px;
+  grid-template-columns: 50px 1fr 80px 80px 80px 80px 90px;
   padding: 12px 20px;
   align-items: center;
 }
@@ -288,6 +288,7 @@ input, textarea, select {
 
   .sb-posts,
   .sb-likes,
+  .sb-dislikes,
   .sb-comments {
     display: none !important;
   }

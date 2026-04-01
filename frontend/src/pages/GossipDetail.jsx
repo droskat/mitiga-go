@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../hooks/useApi'
 import TagBadge from '../components/TagBadge'
-import { Heart, MessageCircle, TrendingUp, ArrowLeft, Send, Loader } from 'lucide-react'
+import ReactionTooltip from '../components/ReactionTooltip'
+import { Heart, HeartCrack, MessageCircle, TrendingUp, ArrowLeft, Send, Loader } from 'lucide-react'
 
 export default function GossipDetail() {
   const { id } = useParams()
@@ -13,6 +14,8 @@ export default function GossipDetail() {
   const [nicknameMap, setNicknameMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [commenting, setCommenting] = useState(false)
+  const [likeHover, setLikeHover] = useState(false)
+  const [dislikeHover, setDislikeHover] = useState(false)
 
   function resolveNicknames(text) {
     if (!nicknameMap || !text) return text
@@ -44,6 +47,11 @@ export default function GossipDetail() {
 
   const handleLike = async () => {
     await api.toggleLike(id)
+    fetchData()
+  }
+
+  const handleDislike = async () => {
+    await api.toggleDislike(id)
     fetchData()
   }
 
@@ -139,19 +147,52 @@ export default function GossipDetail() {
             {gossip.tags?.map(tag => <TagBadge key={tag.id} name={tag.name} size="md" />)}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleLike}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                background: gossip.liked_by_me ? 'rgba(239,68,68,0.1)' : 'var(--bg-hover)',
-                color: gossip.liked_by_me ? '#ef4444' : 'var(--text-secondary)',
-                padding: '8px 16px', borderRadius: 20,
-                fontSize: 13, fontWeight: 600,
-              }}
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setLikeHover(true)}
+              onMouseLeave={() => setLikeHover(false)}
             >
-              <Heart size={16} fill={gossip.liked_by_me ? '#ef4444' : 'none'} />
-              {gossip.like_count} {gossip.like_count === 1 ? 'Like' : 'Likes'}
-            </button>
+              <button
+                onClick={handleLike}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: gossip.liked_by_me ? 'rgba(239,68,68,0.1)' : 'var(--bg-hover)',
+                  color: gossip.liked_by_me ? '#ef4444' : 'var(--text-secondary)',
+                  padding: '8px 16px', borderRadius: 20,
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                <Heart size={16} fill={gossip.liked_by_me ? '#ef4444' : 'none'} />
+                {gossip.like_count} {gossip.like_count === 1 ? 'Like' : 'Likes'}
+              </button>
+              {likeHover && gossip.like_count > 0 && (
+                <ReactionTooltip gossipId={gossip.id} type="liked_by" />
+              )}
+            </div>
+
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={() => setDislikeHover(true)}
+              onMouseLeave={() => setDislikeHover(false)}
+            >
+              <button
+                onClick={handleDislike}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: gossip.disliked_by_me ? 'rgba(59,130,246,0.1)' : 'var(--bg-hover)',
+                  color: gossip.disliked_by_me ? '#3b82f6' : 'var(--text-secondary)',
+                  padding: '8px 16px', borderRadius: 20,
+                  fontSize: 13, fontWeight: 600,
+                }}
+              >
+                <HeartCrack size={16} color={gossip.disliked_by_me ? '#3b82f6' : 'var(--text-secondary)'} />
+                {gossip.dislike_count} {gossip.dislike_count === 1 ? 'Dislike' : 'Dislikes'}
+              </button>
+              {dislikeHover && gossip.dislike_count > 0 && (
+                <ReactionTooltip gossipId={gossip.id} type="disliked_by" />
+              )}
+            </div>
+
             <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)' }}>
               <MessageCircle size={16} />
               {gossip.comment_count} {gossip.comment_count === 1 ? 'Comment' : 'Comments'}

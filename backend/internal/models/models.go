@@ -33,10 +33,17 @@ type Gossip struct {
 	Content      string    `json:"content"`
 	Score        int       `json:"score"`
 	LikeCount    int       `json:"like_count"`
+	DislikeCount int       `json:"dislike_count"`
 	CommentCount int       `json:"comment_count"`
 	Tags         []Tag     `json:"tags"`
 	CreatedAt    time.Time `json:"created_at"`
-	LikedByMe    bool      `json:"liked_by_me"`
+	LikedByMe   bool      `json:"liked_by_me"`
+	DislikedByMe bool     `json:"disliked_by_me"`
+}
+
+type ReactionUsers struct {
+	LikedBy    []string `json:"liked_by"`
+	DislikedBy []string `json:"disliked_by"`
 }
 
 type Tag struct {
@@ -65,6 +72,7 @@ type ScoreEntry struct {
 	Score    int    `json:"score"`
 	Posts    int    `json:"posts"`
 	Likes    int    `json:"likes"`
+	Dislikes int    `json:"dislikes"`
 	Comments int    `json:"comments"`
 }
 

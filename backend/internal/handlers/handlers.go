@@ -288,6 +288,35 @@ func (h *Handler) ToggleLike(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"liked": liked})
 }
 
+func (h *Handler) ToggleDislike(c *gin.Context) {
+	userID := c.GetInt64("user_id")
+	gossipID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	disliked, err := h.db.ToggleDislike(gossipID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to toggle dislike"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"disliked": disliked})
+}
+
+func (h *Handler) GetReactionUsers(c *gin.Context) {
+	gossipID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	reactions, err := h.db.GetReactionUsers(gossipID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch reactions"})
+		return
+	}
+	c.JSON(http.StatusOK, reactions)
+}
+
 // --- Comments ---
 
 func (h *Handler) CreateComment(c *gin.Context) {

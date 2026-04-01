@@ -1,10 +1,14 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, TrendingUp } from 'lucide-react'
+import { Heart, HeartCrack, MessageCircle, TrendingUp } from 'lucide-react'
 import TagBadge from './TagBadge'
+import ReactionTooltip from './ReactionTooltip'
 import { api } from '../hooks/useApi'
 
 export default function GossipCard({ gossip, nicknameMap, onUpdate }) {
   const navigate = useNavigate()
+  const [likeHover, setLikeHover] = useState(false)
+  const [dislikeHover, setDislikeHover] = useState(false)
 
   function resolveNicknames(text) {
     if (!nicknameMap || !text) return text
@@ -19,6 +23,14 @@ export default function GossipCard({ gossip, nicknameMap, onUpdate }) {
     e.stopPropagation()
     try {
       await api.toggleLike(gossip.id)
+      onUpdate?.()
+    } catch {}
+  }
+
+  const handleDislike = async (e) => {
+    e.stopPropagation()
+    try {
+      await api.toggleDislike(gossip.id)
       onUpdate?.()
     } catch {}
   }
@@ -91,19 +103,51 @@ export default function GossipCard({ gossip, nicknameMap, onUpdate }) {
             <TagBadge key={tag.id} name={tag.name} />
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button
-            onClick={handleLike}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              background: 'none', fontSize: 13,
-              color: gossip.liked_by_me ? '#ef4444' : 'var(--text-muted)',
-              fontWeight: gossip.liked_by_me ? 600 : 400,
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setLikeHover(true)}
+            onMouseLeave={() => setLikeHover(false)}
           >
-            <Heart size={15} fill={gossip.liked_by_me ? '#ef4444' : 'none'} />
-            {gossip.like_count}
-          </button>
+            <button
+              onClick={handleLike}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: 'none', fontSize: 13,
+                color: gossip.liked_by_me ? '#ef4444' : 'var(--text-muted)',
+                fontWeight: gossip.liked_by_me ? 600 : 400,
+              }}
+            >
+              <Heart size={15} fill={gossip.liked_by_me ? '#ef4444' : 'none'} />
+              {gossip.like_count}
+            </button>
+            {likeHover && gossip.like_count > 0 && (
+              <ReactionTooltip gossipId={gossip.id} type="liked_by" />
+            )}
+          </div>
+
+          <div
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setDislikeHover(true)}
+            onMouseLeave={() => setDislikeHover(false)}
+          >
+            <button
+              onClick={handleDislike}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: 'none', fontSize: 13,
+                color: gossip.disliked_by_me ? '#3b82f6' : 'var(--text-muted)',
+                fontWeight: gossip.disliked_by_me ? 600 : 400,
+              }}
+            >
+              <HeartCrack size={15} color={gossip.disliked_by_me ? '#3b82f6' : 'var(--text-muted)'} />
+              {gossip.dislike_count}
+            </button>
+            {dislikeHover && gossip.dislike_count > 0 && (
+              <ReactionTooltip gossipId={gossip.id} type="disliked_by" />
+            )}
+          </div>
+
           <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--text-muted)' }}>
             <MessageCircle size={15} />
             {gossip.comment_count}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../hooks/useApi'
-import { Trophy, TrendingUp, MessageCircle, Heart, FileText, Loader } from 'lucide-react'
+import { Trophy, TrendingUp, MessageCircle, Heart, HeartCrack, FileText, Loader } from 'lucide-react'
 
 const medals = ['#FFD700', '#C0C0C0', '#CD7F32']
 
@@ -22,7 +22,7 @@ export default function Scoreboard() {
         <h2 style={{ fontSize: 22, fontWeight: 800 }}>Scoreboard</h2>
       </div>
       <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 28 }}>
-        Top contributors ranked by engagement (Posts x5 + Likes x3 + Comments x2)
+        Top contributors ranked by engagement (Posts x5 + Likes x3 + Comments x2 - Dislikes x2)
       </p>
 
       {loading ? (
@@ -59,6 +59,7 @@ export default function Scoreboard() {
             <span>User</span>
             <span style={{ textAlign: 'center' }}>Posts</span>
             <span style={{ textAlign: 'center' }}>Likes</span>
+            <span style={{ textAlign: 'center' }}>Dislikes</span>
             <span style={{ textAlign: 'center' }}>Comments</span>
             <span style={{ textAlign: 'right' }}>Score</span>
           </div>
@@ -111,6 +112,10 @@ export default function Scoreboard() {
                 <Heart size={13} />
                 {entry.likes}
               </div>
+              <div className="sb-dislikes" style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, color: 'var(--text-secondary)', fontSize: 13 }}>
+                <HeartCrack size={13} />
+                {entry.dislikes}
+              </div>
               <div className="sb-comments" style={{ textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, color: 'var(--text-secondary)', fontSize: 13 }}>
                 <MessageCircle size={13} />
                 {entry.comments}
@@ -123,6 +128,9 @@ export default function Scoreboard() {
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-muted)', fontSize: 11 }}>
                   <Heart size={11} /> {entry.likes} <span className="scoreboard-stat-label">likes</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-muted)', fontSize: 11 }}>
+                  <HeartCrack size={11} /> {entry.dislikes} <span className="scoreboard-stat-label">dislikes</span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--text-muted)', fontSize: 11 }}>
                   <MessageCircle size={11} /> {entry.comments} <span className="scoreboard-stat-label">comments</span>
