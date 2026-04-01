@@ -6,5 +6,6 @@ dist/
 *.exe
 mitiga-server
 backend/config.go
+backend/cmd/config.go
 .env
 .DS_Store

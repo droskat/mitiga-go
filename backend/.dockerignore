@@ -1,0 +1,8 @@
+*.db
+*.db-shm
+*.db-wal
+*.exe
+mitiga-server
+config.go
+cmd/config.go
+.DS_Store

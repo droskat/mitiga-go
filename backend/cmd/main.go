@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -20,11 +21,11 @@ func main() {
 	}
 	middleware.Init()
 
-	dbUser := envOrDefault("DB_USER", "root")
-	dbPass := envOrDefault("DB_PASS", "")
-	dbHost := envOrDefault("DB_HOST", "127.0.0.1")
-	dbPort := envOrDefault("DB_PORT", "3306")
-	dbName := envOrDefault("DB_NAME", "mitiga")
+	dbUser := configVal("DB_USER")
+	dbPass := configVal("DB_PASS")
+	dbHost := configVal("DB_HOST")
+	dbPort := configVal("DB_PORT")
+	dbName := configVal("DB_NAME")
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=UTC",
 		dbUser, dbPass, dbHost, dbPort, dbName,
@@ -40,8 +41,14 @@ func main() {
 	h := handlers.New(db)
 	r := gin.Default()
 
+	allowedOrigins := []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:3000"}
+	if extra := os.Getenv("CORS_ORIGINS"); extra != "" {
+		for _, o := range strings.Split(extra, ",") {
+			allowedOrigins = append(allowedOrigins, strings.TrimSpace(o))
+		}
+	}
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:5174", "http://localhost:3000"},
+		AllowOrigins:     allowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -91,6 +98,16 @@ func main() {
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
+}
+
+func configVal(key string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	if val, ok := dbDefaults[key]; ok {
+		return val
+	}
+	return ""
 }
 
 func envOrDefault(key, fallback string) string {
